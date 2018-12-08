@@ -71,29 +71,25 @@ public:
 		LOG(INFO, "Start Server Begin!!");
 		while(1)
 		{
-			//接收请求 (TCP, 服务器) 
-			//int accept(int socket, struct sockaddr* address, socklen_t* address_len);
-			struct sockaddr_in client;
-			socklen_t len = sizeof(client);
-			int sock = accept(_listen_sock, (struct sockaddr*)&client, &len);
-			if(sock < 0)
-			{
-				LOG(WARNING, "Accept Error!!");
-				continue;
-			}
-			LOG(INFO, "Get New Client, Create Thread Handler Rquest...");
-			
-			pthread_t tid;
-			int *sock_p = new int;
-			*sock_p = sock;
-			
-			//int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*star t_routine)(void*), void *arg); 
-			//pthread_creat(&tid, NULL, Entry::HandlerRequest, (void*)sock_p);
-			
-			delete sock_p;
-		}
-	}
-	
+            //接收请求 (TCP, 服务器)
+            //int accept(int socket, struct sockaddr* address, socklen_t* address_len);
+            struct sockaddr_in client;
+            socklen_t len = sizeof(client);
+            int sock = accept(_listen_sock, (struct sockaddr*)&client, &len);
+            if(sock < 0)
+            {
+                LOG(WARNING, "Accept Error!!");
+                continue;
+            }
+            LOG(INFO, "Get New Client, Create Thread Handler Rquest...");
+            pthread_t tid;
+            int *sock_p = new int;
+            *sock_p = sock;
+            //int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *(*star t_routine)(void*), void *arg);
+            pthread_create(&tid, NULL, Entry::HandlerRequest, (void*)sock_p);
+        }
+    }
+
 	~HttpdServer()
 	{
 		if(_listen_sock != -1)

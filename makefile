@@ -2,4 +2,4 @@ bin=HttpdServer
 cc=g++
 
 $(bin):HttpdServer.cc
-	$(cc) -o $@ $^ -std=c++11
+	$(cc) -o $@ $^ -lpthread -std=c++11
