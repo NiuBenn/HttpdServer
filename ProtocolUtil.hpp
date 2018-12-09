@@ -15,7 +15,7 @@
 #include <unordered_map>
 #include <sys/sendfile.h>
 #include <fcntl.h>
-
+#include <sys/wait.h>
 
 #define HOME_PAGE "index.html"
 #define WEB_ROOT "HTMLROOT"
@@ -23,6 +23,7 @@
 #define OK 200
 #define NOT_FOUND 404
 #define BAD_REQUEST 400
+#define SERVER_ERROR 500
 
 #define HTTP_VERSION "http/1.0"
 
@@ -111,7 +112,7 @@ public:
 		_path = WEB_ROOT;
 		_resource_size = 0;
 		_content_length = -1;
-		_resource_suffix = "html";
+		_resource_suffix = ".html";
 	}
 	
 	void RequestLineParse()	//请求行解析
@@ -141,8 +142,8 @@ public:
 			{
 				_cgi = true;
 				_path += _uri.substr(0,pos);
-				_param += _uri.substr(pos+1); 
-				
+				_param += _uri.substr(pos+1);
+                std::cout<<"first param:"<<_param<<std::endl;
 			}
 			else
 			{
@@ -221,14 +222,29 @@ public:
 		return true;
 	}
 
+	bool IsNeedRecvText()
+	{
+		if(strcasecmp(_method.c_str(),"POST")==0)
+		{
+			return true;
+		}
+		return false;
+	}
+	
     bool IsCgi()
     {
         return _cgi;
     }
+	
 	int GetResourceSize()
 	{
 		return _resource_size;
 	}
+	
+	void SetResourceSize(int rs)
+    {
+        _resource_size = rs;
+    }
 	
 	std::string& GetSuffix()
 	{
@@ -238,6 +254,22 @@ public:
 	std::string& GetPath()
 	{
 		return _path;
+	}
+	
+	int GetContentLength()
+	{
+		std::string cl = _head_kvmap["Content-Length"];
+		if(!cl.empty())
+		{
+			std::stringstream ss(cl);
+			ss >> _content_length;
+		}
+		return _content_length;
+	}
+	
+	std::string& GetParam()
+	{
+		return _param;
 	}
 };
 
@@ -275,7 +307,7 @@ public:
 		_rsp_head = "Content-Length: ";
 		_rsp_head += Tools::IntToStr(rq->GetResourceSize());
 		_rsp_head += "\n";
-		_rsp_head += "Content-Type: ";
+        _rsp_head += "Content-Type: ";
 		_rsp_head += Tools::SuffixToType(rq->GetSuffix());
         _rsp_head += "\n";
 	}
@@ -349,6 +381,17 @@ public:
 		}
 	}
 	
+	void RecvRequestText(std::string& text, int Length, std::string& param)
+	{
+		char c;
+		for(int i = 0; i < Length; ++i)
+		{
+			recv( _sock, &c, 1, 0);
+			text.push_back(c);
+		}
+		param = text;
+	}
+	
 	void SendResponse(Request* &rq, Response* &rsp, bool cgi)
 	{
 		std::string& rsp_line = rsp->_rsp_line;
@@ -362,6 +405,8 @@ public:
 		if(cgi)
 		{
 			//cgi处理
+			std::string& rsp_text = rsp->_rsp_text;
+			send(_sock, rsp_text.c_str(), rsp_text.size(), 0);
 		}
 		else
 		{
@@ -385,11 +430,83 @@ public:
 		conn->SendResponse(rq, rsp, false);
 	}
 	
+	static void MakeResponseCgi(Connect* &conn, Request* &rq, Response* &rsp)
+	{
+		int &code = rsp->_code;
+		int input[2];
+		int output[2];
+		
+		std::string param = rq->GetParam();
+		std::string &rsp_text = rsp->_rsp_text;
+		
+		pipe(input);
+		pipe(output);
+		
+		pid_t pid = fork();
+		
+		if(pid < 0)
+		{
+			code = SERVER_ERROR;
+			return;
+		}
+		else if(pid == 0)
+		{
+			//child
+			close(input[1]);
+			close(output[2]);
+			
+			const std::string &path = rq->GetPath();
+			
+			dup2(input[0], 0);
+            dup2(output[1], 1);
+            execl(path.c_str(), path.c_str(), NULL);
+            exit(1);
+		}
+		else
+		{
+			//parent
+			
+			close(input[0]);
+            close(output[1]);
+
+            size_t size = param.size();
+            size_t total = 0;
+            size_t curr = 0;
+            const char *p = param.c_str();
+            
+            while( total < size &&(curr = write(input[1], p + total, size - total)) > 0 )
+			{
+                total += curr;
+            }
+
+			close(input[1]);
+			
+            char c;
+            while(read(output[0], &c, 1) > 0)
+			{
+                rsp_text.push_back(c);
+			}
+			
+			waitpid(pid, NULL, 0);
+			
+			close(output[0]);
+			
+			rsp->MakeResponseLine();
+			rq->SetResourceSize(rsp_text.size());
+
+			rsp->MakeResponseHead(rq);
+			conn->SendResponse( rq, rsp, true);
+		}
+
+
+		
+	}
+	
 	static void MakeResponse(Connect* &conn, Request* &rq, Response* &rsp)
 	{
 		if(rq->IsCgi())
 		{
-			//Cgi解析
+			MakeResponseCgi(conn, rq, rsp);
 		}
 		else
 		{
@@ -397,6 +514,22 @@ public:
 		}
 	}
 
+	static void HandlerError(Connect* &conn, Request* &rq, Response* &rsp)
+	{
+		int &code = rsp->_code;
+            switch(code){
+                case 400:
+                    break;
+                case 404:
+                    //Process404(conn, rq, rsp);
+                    break;
+                case 500:
+                    break;
+                case 503:
+                    break;
+            }
+	}
+	
 	static void *HandlerRequest(void* abc)
 	{
         int sock = *(int*)abc;
@@ -406,8 +539,10 @@ public:
 		Request* rq = new Request();
 		Response* rsp = new Response();	
 		int &code = rsp->_code;
+		
 		conn->RecvOneLine(rq->_rq_line);
 		rq->RequestLineParse();
+		
 		if(!rq->IsMethodOK())
 		{
 			conn->RecvRequestHead(rq->_rq_head);
@@ -438,16 +573,19 @@ public:
 			goto end;
 		}
 		
-		//if(IsNeedRecvText())
-		//{
-			//读取正文部分
-		//}
+		if(rq->IsNeedRecvText())
+		{
+			conn->RecvRequestText(rq->_rq_text, rq->GetContentLength(),rq->GetParam());
+		}
+		
 		MakeResponse(conn, rq, rsp);
-		
-		
-		
-		
+					
 end:
+		if(code!=OK)
+		{
+			HandlerError(conn, rq, rsp);
+		}
+
         delete conn;
         delete rq;
         delete rsp;
