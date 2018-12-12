@@ -39,15 +39,15 @@ class Tools
 public:
 	static void MakeKV(std::unordered_map<std::string, std::string> &kvmap,std::string &str)
 	{
+
 		std::size_t pos = str.find(": ");
-		if(std::string::npos != pos)
+		if(std::string::npos == pos)
 		{
 			return;
 		}
 		
 		std::string k = str.substr(0,pos);
 		std::string v = str.substr(pos+2);
-		
 		kvmap.insert(make_pair(k,v));		
 	}
 	
@@ -143,7 +143,6 @@ public:
 				_cgi = true;
 				_path += _uri.substr(0,pos);
 				_param += _uri.substr(pos+1);
-                std::cout<<"first param:"<<_param<<std::endl;
 			}
 			else
 			{
@@ -206,7 +205,6 @@ public:
 			}
 			
 			std::string substr = _rq_head.substr(begin, pos-begin);
-			
 			if(substr.empty())
 			{
 				break;
@@ -497,8 +495,6 @@ public:
 			rsp->MakeResponseHead(rq);
 			conn->SendResponse( rq, rsp, true);
 		}
-
-
 		
 	}
 	
@@ -530,10 +526,10 @@ public:
             }
 	}
 	
-	static void *HandlerRequest(void* abc)
+	static void *HandlerRequest(void* sockt_)
 	{
-        int sock = *(int*)abc;
-        delete (int*)abc;
+        int sock = *(int*)sockt_;
+        delete (int*)sockt_;
 
 		Connect* conn = new Connect(sock);
 		Request* rq = new Request();
@@ -592,12 +588,6 @@ end:
 
 	}
 };
-
-
-
-
-
-
 
 
 #endif
