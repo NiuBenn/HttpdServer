@@ -117,6 +117,7 @@ public:
 	
 	void RequestLineParse()	//请求行解析
 	{
+        std::cout<<"请求的内容是："<<_rq_line<<std::endl;
 		std::stringstream ss(_rq_line);
 		ss >> _method >> _uri >> _version;
 	}
@@ -526,10 +527,8 @@ public:
             }
 	}
 	
-	static void *HandlerRequest(void* sockt_)
+	static int HandlerRequest(int sock)
 	{
-        int sock = *(int*)sockt_;
-        delete (int*)sockt_;
 
 		Connect* conn = new Connect(sock);
 		Request* rq = new Request();
