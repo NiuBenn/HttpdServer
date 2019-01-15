@@ -337,6 +337,10 @@ public:
 		_sock = sock;
 	}
 	
+    ~Connect()
+    {
+        close(_sock);
+    }
 	int RecvOneLine(std::string& line)
 	{
 		char c = 'c';
