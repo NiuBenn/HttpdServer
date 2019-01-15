@@ -2,20 +2,25 @@
 #define __HTTPD_SERVER_HPP__
 
 #include<pthread.h>
+#include<poll.h>
+#include<vector>
 #include"ProtocolUtil.hpp"
 #include"ThreadPool.hpp"
 
+typedef std::vector<struct pollfd> PollFdList;
+
 class HttpdServer
 {
-private:	
-	int _listen_sock;
+private:
+	struct pollfd  _listen_fd;
+    PollFdList _pollfds;
 	int _prot;
     ThreadPool *_tp;
 public:
 	HttpdServer(int prot)
 	{
 		_prot = prot;
-		_listen_sock = -1;
+		_listen_fd.fd = -1;
 	}
 	
 	void Init()
@@ -23,13 +28,15 @@ public:
 		// 创建 socket 文件描述符 (TCP/UDP, 客户端 + 服务器) 
 		//int socket(int domain, int type, int protocol);
 
-		_listen_sock = socket(AF_INET, SOCK_STREAM, 0);
-		if(_listen_sock < 0)
+        _listen_fd.events = POLLIN;
+		_listen_fd.fd = socket(AF_INET, SOCK_STREAM, 0);
+		if(_listen_fd.fd < 0)
 		{
 			LOG(ERROR, "Creat Socket Error!");
 			exit(2);
 		}
-		
+		_pollfds.push_back(_listen_fd);
+
 		/*int setsockopt(
 		SOCKET s,
 		int level,
@@ -37,8 +44,9 @@ public:
 		const char* optval,
 		int optlen
 		);*/
+
 		bool Reuseaddr = true;
-		setsockopt(_listen_sock, SOL_SOCKET, SO_REUSEADDR, (const char*)&Reuseaddr, sizeof(Reuseaddr));
+		setsockopt(_listen_fd.fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&Reuseaddr, sizeof(Reuseaddr));
 		
 		sockaddr_in local;
 		local.sin_family = AF_INET;
@@ -48,7 +56,7 @@ public:
 		// 绑定端⼝口号 (TCP/UDP, 服务器)      
 		//int bind(int socket, const struct sockaddr *address,socklen_t address_len);
 
-		if( bind( _listen_sock, (const struct sockaddr*)&local, sizeof(local)) < 0)
+		if( bind( _listen_fd.fd, (const struct sockaddr*)&local, sizeof(local)) < 0)
 		{
 			LOG(ERROR, "Bind Socket Error!!");
 			exit(3);
@@ -57,7 +65,7 @@ public:
 		// 开始监听socket (TCP, 服务器) 
 		//int listen(int socket, int backlog);
 		
-		if( listen(_listen_sock, 5) < 0)
+		if( listen(_listen_fd.fd, 5) < 0)
 		{
 			LOG(ERROR, "Listen Socket Error!!");
 			exit(4);
@@ -73,21 +81,48 @@ public:
 		LOG(INFO, "Start Server Begin!!");
 		while(1)
 		{
-            //接收请求 (TCP, 服务器)
-            //int accept(int socket, struct sockaddr* address, socklen_t* address_len);
-            struct sockaddr_in client;
-            socklen_t len = sizeof(client);
-            int sock = accept(_listen_sock, (struct sockaddr*)&client, &len);
-            if(sock < 0)
+            int ret = poll(&*_pollfds.begin(), _pollfds.size(), -1);
+            
+            if(ret < 0)
             {
-                LOG(WARNING, "Accept Error!!");
+                LOG(WARNING,"Poll Error!!");
                 continue;
             }
-            LOG(INFO, "Get New Client, Create Thread Handler Rquest...");
+            if(ret == 0)
+            {
+                LOG(INFO,"Poll TimeOut!!");
+                continue;
+            }
 
-            Task t;
-            t.SetTask(sock,Entry::HandlerRequest);
-            _tp->PushTask(t);
+            if(_pollfds[0].revents & POLLIN)
+            {
+                //接收请求 (TCP, 服务器)
+                //int accept(int socket, struct sockaddr* address, socklen_t* address_len);
+                struct pollfd client_fd;
+                client_fd.events = POLLIN;
+                struct sockaddr_in client;
+                socklen_t len = sizeof(client);
+                client_fd.fd = accept(_listen_fd.fd, (struct sockaddr*)&client, &len);
+                if(client_fd.fd < 0)
+                {
+                    LOG(WARNING, "Accept Error!!");
+                    continue;
+                }
+
+                _pollfds.push_back(client_fd);
+                LOG(INFO, "Get New Client, Create Thread Handler Rquest...");
+            }
+
+            for(size_t i = 1; i < _pollfds.size(); ++i)
+            {
+                if(_pollfds[i].revents & POLLIN)
+                {
+                    Task t;
+                    t.SetTask(_pollfds[i].fd,Entry::HandlerRequest);
+                    _tp->PushTask(t);
+                    _pollfds.erase(_pollfds.begin()+i);
+                }
+            }
            
             // pthread_t tid;
             //int *sock_p = new int;
@@ -99,9 +134,9 @@ public:
 
 	~HttpdServer()
 	{
-		if(_listen_sock != -1)
+		if(_listen_fd.fd != -1)
 		{
-			close(_listen_sock);
+			close(_listen_fd.fd);
 		}
 		_prot = -1;
         delete _tp;
