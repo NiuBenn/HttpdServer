@@ -19,6 +19,7 @@
 
 #define HOME_PAGE "index.html"
 #define WEB_ROOT "HTMLROOT"
+#define PAGE_404 "404.html"
 
 #define OK 200
 #define NOT_FOUND 404
@@ -249,12 +250,22 @@ public:
 	{
 		return _resource_suffix;
 	}
-	
+
+    void SetSuffix(std::string suffix)
+    {
+        _resource_suffix = suffix;
+    }
+
 	std::string& GetPath()
 	{
 		return _path;
 	}
 	
+    void SetPath(std::string path)
+    {
+        _path = path;
+    }
+
 	int GetContentLength()
 	{
 		std::string cl = _head_kvmap["Content-Length"];
@@ -515,6 +526,20 @@ public:
 		}
 	}
 
+    static void Process404(Connect* &conn, Request* &rq, Response* rsp)
+    {
+        std::string path = WEB_ROOT;
+        path += "/";
+        path += PAGE_404;
+        struct stat st;
+        stat(path.c_str(),&st);
+
+        rq->SetResourceSize(st.st_size);
+        rq->SetSuffix(".html");
+        rq->SetPath(path);
+        MakeResponseNonCgi(conn, rq, rsp);
+    }
+
 	static void HandlerError(Connect* &conn, Request* &rq, Response* &rsp)
 	{
 		int &code = rsp->_code;
@@ -522,7 +547,7 @@ public:
                 case 400:
                     break;
                 case 404:
-                    //Process404(conn, rq, rsp);
+                    Process404(conn, rq, rsp);
                     break;
                 case 500:
                     break;
