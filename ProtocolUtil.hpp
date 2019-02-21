@@ -26,7 +26,7 @@
 #define BAD_REQUEST 400
 #define SERVER_ERROR 500
 
-#define HTTP_VERSION "http/1.0"
+#define HTTP_VERSION "HTTP/1.0"
 
 std::unordered_map<std::string, std::string> stuffix_map{
     {".html","text/html"},
