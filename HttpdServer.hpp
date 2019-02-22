@@ -45,8 +45,8 @@ public:
 		int optlen
 		);*/
 
-		bool Reuseaddr = true;
-		setsockopt(_listen_fd.fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&Reuseaddr, sizeof(Reuseaddr));
+		int opt = 1;
+		setsockopt(_listen_fd.fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 		
 		sockaddr_in local;
 		local.sin_family = AF_INET;
