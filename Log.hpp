@@ -4,18 +4,25 @@
 #include<iostream>
 #include<string>
 #include<sys/time.h>
+#include<fstream>
 
 #define INFO 0
 #define WARNING 1
 #define ERROR 2
 
+std::string LogFilePath("./Log/Log.log");
 
-
-uint64_t GetNowTimeSteamp()
+std::string GetNowTime()
 {
 	struct timeval nowtime;
 	gettimeofday(&nowtime, NULL);
-	return nowtime.tv_sec;
+	char ntime[32];
+    time_t tt = nowtime.tv_sec;
+    struct tm* ttime;
+    ttime = localtime(&tt);
+    strftime(ntime,64,"%Y-%m-%d %H:%M:%S",ttime);
+    std::string result = ntime;
+    return result;
 }
 
 std::string GetLogLevel(int level)
@@ -35,8 +42,12 @@ std::string GetLogLevel(int level)
 
 void Log(int level, std::string message, std::string file, int line)
 {
-	std::cout << "[ " << GetNowTimeSteamp() << " ] [ " << GetLogLevel(level) << " ] [ " << file << " ] [ " << line << " ]";
-	std::cout << " [ " << message << " ]" << std::endl;
+
+    std::ofstream logfile;
+    logfile.open(LogFilePath.c_str(),std::ios::app);
+	logfile << "[ " << GetNowTime() << " ] [ " << GetLogLevel(level) << " ] [ " << file << " ] [ " << line << " ]";
+	logfile << " [ " << message << " ]" << std::endl;
+    logfile.close();
 }
 
 #define LOG(level,message) Log(level,message,__FILE__,__LINE__);

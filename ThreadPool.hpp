@@ -86,7 +86,6 @@ public:
 			tp->PopTask(t);
 			tp->UnlockQueue();
 			LOG(INFO,"Task has be taken, handler...");
-			std::cout<<"Thread id is :"<<pthread_self()<<std::endl;
 			t.Run();
 		}
 	}

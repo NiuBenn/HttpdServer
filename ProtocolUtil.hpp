@@ -116,11 +116,17 @@ public:
 		_resource_suffix = ".html";
 	}
 	
-	void RequestLineParse()	//请求行解析
+	bool RequestLineParse()	//请求行解析
 	{
-        std::cout<<"请求的内容是："<<_rq_line<<std::endl;
+        LOG(INFO, "Request:" + _rq_line.substr(0,_rq_line.size()-2));
+        if(_rq_line[0] == ' ')
+        {
+            LOG(WARNING, "请求行为空！");
+            return false;
+        }
 		std::stringstream ss(_rq_line);
 		ss >> _method >> _uri >> _version;
+        return true;
 	}
 	
 	bool IsMethodOK()
@@ -545,6 +551,7 @@ public:
 		int &code = rsp->_code;
             switch(code){
                 case 400:
+                    Process404(conn, rq, rsp);
                     break;
                 case 404:
                     Process404(conn, rq, rsp);
@@ -565,7 +572,12 @@ public:
 		int &code = rsp->_code;
 		
 		conn->RecvOneLine(rq->_rq_line);
-		rq->RequestLineParse();
+		if((rq->RequestLineParse()) == false )
+        {
+            LOG(ERROR,"Error Request");
+            code = BAD_REQUEST;
+            goto end;
+        }
 		
 		if(!rq->IsMethodOK())
 		{
@@ -589,6 +601,7 @@ public:
 		
 		if(rq->RequestHeadParse())
 		{
+            
 			LOG(INFO,"Request Head Parse Succes")
 		}
 		else
@@ -610,6 +623,9 @@ end:
 			HandlerError(conn, rq, rsp);
 		}
 
+        
+		LOG(INFO,"Make Response Succes!!");
+        
         delete conn;
         delete rq;
         delete rsp;
@@ -617,5 +633,5 @@ end:
 	}
 };
 
-
 #endif
+
