@@ -89,9 +89,6 @@ public:
 			t.Run();
 		}
 	}
-	
-	
-public:
 
 	ThreadPool(int num = NUM)
 		:_thread_total_num(num),_thread_idle_num(0)

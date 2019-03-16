@@ -118,16 +118,16 @@ public:
 	
 	bool RequestLineParse()	//请求行解析
 	{
-        LOG(INFO, "Request:" + _rq_line.substr(0,_rq_line.size()-2));
+        LOG(INFO, "Request:" + _rq_line.substr(0, _rq_line.size() - 1));
         if(_rq_line[0] == ' ')
         {
             LOG(WARNING, "请求行为空！");
             return false;
         }
-		std::stringstream ss(_rq_line);
-		ss >> _method >> _uri >> _version;
+        std::stringstream ss(_rq_line);
+        ss >> _method >> _uri >> _version;
         return true;
-	}
+    }
 	
 	bool IsMethodOK()
 	{
@@ -166,7 +166,6 @@ public:
 		{
 			_path += HOME_PAGE;
 		}
-
     }
 	
 	bool IsPathOK()
@@ -187,7 +186,7 @@ public:
 		{
 			if((st.st_mode & S_IXUSR ) || (st.st_mode & S_IXGRP) || (st.st_mode & S_IXOTH))
 			{
-               _cgi = true;
+                _cgi = true;
             }
 		}
 		
@@ -236,57 +235,57 @@ public:
 		}
 		return false;
 	}
-	
+
     bool IsCgi()
     {
         return _cgi;
     }
 	
-	int GetResourceSize()
-	{
-		return _resource_size;
-	}
+    int GetResourceSize()
+    {
+        return _resource_size;
+    }
 	
-	void SetResourceSize(int rs)
+    void SetResourceSize(int rs)
     {
         _resource_size = rs;
     }
 	
-	std::string& GetSuffix()
-	{
-		return _resource_suffix;
-	}
-
+    std::string& GetSuffix()
+    {
+        return _resource_suffix;
+    }
+    
     void SetSuffix(std::string suffix)
     {
         _resource_suffix = suffix;
     }
 
-	std::string& GetPath()
-	{
-		return _path;
-	}
+    std::string& GetPath()
+    {
+        return _path;
+    }
 	
     void SetPath(std::string path)
     {
         _path = path;
     }
 
-	int GetContentLength()
-	{
-		std::string cl = _head_kvmap["Content-Length"];
-		if(!cl.empty())
-		{
-			std::stringstream ss(cl);
-			ss >> _content_length;
-		}
-		return _content_length;
-	}
+    int GetContentLength()
+    {
+        std::string cl = _head_kvmap["Content-Length"];
+        if(!cl.empty())
+        {
+            std::stringstream ss(cl);
+            ss >> _content_length;
+        }
+        return _content_length;
+    }
 	
-	std::string& GetParam()
-	{
-		return _param;
-	}
+    std::string& GetParam()
+    {
+        return _param;
+    }
 };
 
 
@@ -304,7 +303,7 @@ public:
 	Response()
 	{
 		_blank = "\n";
-		_code = OK;
+        _code = OK;
 		_fd = -1;
 	}
 		
@@ -358,6 +357,7 @@ public:
     {
         close(_sock);
     }
+
 	int RecvOneLine(std::string& line)
 	{
 		char c = 'c';
@@ -495,30 +495,30 @@ public:
             const char *p = param.c_str();
             
             while( total < size &&(curr = write(input[1], p + total, size - total)) > 0 )
-			{
+            {
                 total += curr;
             }
 
-			close(input[1]);
+            close(input[1]);
 			
             char c;
             while(read(output[0], &c, 1) > 0)
-			{
+            {
                 rsp_text.push_back(c);
-			}
+            }
+            
+            waitpid(pid, NULL, 0);
 			
-			waitpid(pid, NULL, 0);
+            close(output[0]);
 			
-			close(output[0]);
-			
-			rsp->MakeResponseLine();
-			rq->SetResourceSize(rsp_text.size());
+            rsp->MakeResponseLine();
+            rq->SetResourceSize(rsp_text.size());
 
-			rsp->MakeResponseHead(rq);
-			conn->SendResponse( rq, rsp, true);
-		}
-		
-	}
+            rsp->MakeResponseHead(rq);
+            conn->SendResponse( rq, rsp, true);
+        }
+
+    }
 	
 	static void MakeResponse(Connect* &conn, Request* &rq, Response* &rsp)
 	{
@@ -531,7 +531,7 @@ public:
 			MakeResponseNonCgi(conn, rq, rsp);
 		}
 	}
-
+    
     static void Process404(Connect* &conn, Request* &rq, Response* rsp)
     {
         std::string path = WEB_ROOT;
@@ -579,7 +579,7 @@ public:
             goto end;
         }
 		
-		if(!rq->IsMethodOK())
+        if(!rq->IsMethodOK())
 		{
 			conn->RecvRequestHead(rq->_rq_head);
 			code = BAD_REQUEST;
@@ -629,7 +629,6 @@ end:
         delete conn;
         delete rq;
         delete rsp;
-
 	}
 };
 

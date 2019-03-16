@@ -14,9 +14,9 @@ std::string LogFilePath("./Log/Log.log");
 
 std::string GetNowTime()
 {
-	struct timeval nowtime;
-	gettimeofday(&nowtime, NULL);
-	char ntime[32];
+    struct timeval nowtime;
+    gettimeofday(&nowtime, NULL);
+    char ntime[32];
     time_t tt = nowtime.tv_sec;
     struct tm* ttime;
     ttime = localtime(&tt);
@@ -45,8 +45,8 @@ void Log(int level, std::string message, std::string file, int line)
 
     std::ofstream logfile;
     logfile.open(LogFilePath.c_str(),std::ios::app);
-	logfile << "[ " << GetNowTime() << " ] [ " << GetLogLevel(level) << " ] [ " << file << " ] [ " << line << " ]";
-	logfile << " [ " << message << " ]" << std::endl;
+    logfile << "[ " << GetNowTime() << " ] [ " << GetLogLevel(level) << " ] [ " << file << " ] [ " << line << " ]";
+    logfile << " [ " << message << " ]" << std::endl;
     logfile.close();
 }
 

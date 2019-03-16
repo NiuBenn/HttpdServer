@@ -70,17 +70,17 @@ public:
 			LOG(ERROR, "Listen Socket Error!!");
 			exit(4);
 		}
-		
+        
         _tp = new ThreadPool();
         _tp->InitThreadPool();
-		LOG(INFO, "Init Server Success!!");
+        LOG(INFO, "Init Server Success!!");
 	}
 	
 	void Start()
 	{
-		LOG(INFO, "Start Server Begin!!");
-		while(1)
-		{
+        LOG(INFO, "Start Server Begin!!");
+        while(1)
+        {
             int ret = poll(&*_pollfds.begin(), _pollfds.size(), -1);
             
             if(ret < 0)
@@ -93,7 +93,7 @@ public:
                 LOG(INFO,"Poll TimeOut!!");
                 continue;
             }
-
+            
             if(_pollfds[0].revents & POLLIN)
             {
                 //接收请求 (TCP, 服务器)
@@ -112,7 +112,7 @@ public:
                 _pollfds.push_back(client_fd);
                 LOG(INFO, "Get New Client, Create Thread Handler Rquest...");
             }
-
+            
             for(size_t i = 1; i < _pollfds.size(); ++i)
             {
                 if(_pollfds[i].revents & POLLIN)
@@ -131,23 +131,17 @@ public:
             //pthread_create(&tid, NULL, Entry::HandlerRequest, (void*)sock_p);
         }
     }
-
-	~HttpdServer()
-	{
-		if(_listen_fd.fd != -1)
-		{
-			close(_listen_fd.fd);
-		}
-		_prot = -1;
+    
+    ~HttpdServer()
+    {
+        if(_listen_fd.fd != -1)
+        {
+            close(_listen_fd.fd);
+        }
+        _prot = -1;
         delete _tp;
-	}
-
+    }
 };
-
-
-
-
-
 
 
 #endif

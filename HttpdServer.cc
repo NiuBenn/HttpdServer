@@ -18,7 +18,8 @@ int main(int argc, char *argv[])
 
 	HttpdServer* server = new HttpdServer(atoi(argv[1]));	//new HttpdServer对象
 	server->Init();		//对象初始化
-	server->Start();	//启动server
+
+    server->Start();	//启动server
 	
 	delete server;		
 	return 0;
