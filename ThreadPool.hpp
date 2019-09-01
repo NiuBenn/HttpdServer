@@ -42,6 +42,7 @@ private:
 	std::queue<Task> _task_queue;
 	pthread_mutex_t _lock;
 	pthread_cond_t _cond;
+    volatile bool _is_quit;
 
 public:
 	void LockQueue()
@@ -60,6 +61,13 @@ public:
 	
 	void ThreadIdle()
 	{
+        if(_is_quit)
+        {
+            UnlockQueue();
+            _thread_idle_num--;
+            LOG(INFO,"Thread Quit!");
+            pthread_exit((void*)0);
+        }
 		_thread_idle_num++;
 		pthread_cond_wait(&_cond, &_lock);
 		_thread_idle_num--;
@@ -69,6 +77,11 @@ public:
 	{
 		pthread_cond_signal(&_cond);
 	}
+
+    void WakeupAllThread()
+    {
+        pthread_cond_broadcast(&_cond);
+    }
 	
 	static void* ThreadRoutine(void* arg)
 	{
@@ -91,7 +104,7 @@ public:
 	}
 
 	ThreadPool(int num = NUM)
-		:_thread_total_num(num),_thread_idle_num(0)
+		:_thread_total_num(num),_thread_idle_num(0),_is_quit(false)
 	{
 		pthread_mutex_init(&_lock, NULL);
 		pthread_cond_init(&_cond, NULL);
@@ -109,6 +122,11 @@ public:
 	void PushTask(Task &t)
 	{
 		LockQueue();
+        if(_is_quit)
+        {
+            UnlockQueue();
+            return;
+        }
 		_task_queue.push(t);
 		WeakOneThread();
 		UnlockQueue();
@@ -120,6 +138,15 @@ public:
 		_task_queue.pop();
 	}
 	
+    void Stop()
+    {
+        LockQueue();
+        _is_quit = true;
+        UnlockQueue();
+        while(_thread_idle_num > 0)
+            WakeupAllThread();
+    }
+
 	~ThreadPool()
 	{
 		pthread_mutex_destroy(&_lock);
